@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ぴぴナビ</title>
+    <style>
+        :root {
+            --bg-color: #f4f6f9;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --primary-color: #3b82f6;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --border-color: #e5e7eb;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg-color); color: var(--text-color); padding-bottom: 70px; }
+        
+        /* 共通レイアウト */
+        .page { display: none; padding: 16px; max-width: 480px; margin: 0 auto; }
+        .page.active { display: block; }
+        .card { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        h2 { font-size: 1.25rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        
+        /* 下部ナビゲーション */
+        .nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 60px; background: var(--card-bg); border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; align-items: center; z-index: 100; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; font-size: 0.75rem; color: #666; cursor: pointer; border: none; background: none; width: 20%; }
+        .nav-item.active { color: var(--primary-color); font-weight: bold; }
+        .nav-icon { font-size: 1.4rem; margin-bottom: 2px; }
+
+        /* ホーム画面用 */
+        .stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .stat-box { background: var(--bg-color); padding: 12px; border-radius: 8px; text-align: center; }
+        .stat-val { font-size: 1.3rem; font-weight: bold; color: var(--primary-color); margin-top: 4px; }
+        .progress-bar-container { background: #e5e7eb; border-radius: 8px; height: 16px; width: 100%; overflow: hidden; margin-top: 8px; }
+        .progress-bar { background: var(--success-color); height: 100%; width: 0%; transition: width 0.3s; }
+
+        /* フォーム系共通 */
+        .form-group { margin-bottom: 12px; }
+        label { display: block; font-size: 0.85rem; font-weight: bold; margin-bottom: 4px; }
+        input, select { width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem; }
+        .btn { display: block; width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; text-align: center; background: var(--primary-color); color: white; }
+        .btn-secondary { background: #6b7280; }
+        .btn-success { background: var(--success-color); }
+        
+        /* 筋トレ・食事用UI */
+        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-color); border-radius: 8px; margin-bottom: 8px; animation: fadeIn 0.3s ease; }
+        .workout-item { border-left: 5px solid var(--primary-color); cursor: pointer; }
+        
+        /* 完了した種目は非表示にする */
+        .workout-item.completed { display: none; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .checkbox-btn { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #ccc; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; background: white; flex-shrink: 0; }
+        .up-alert { font-size: 0.8rem; color: var(--warning-color); font-weight: bold; margin-top: 2px; }
+        .complete-message { text-align: center; padding: 30px 10px; color: var(--success-color); font-weight: bold; font-size: 1.2rem; }
+
+        /* クイックプロテインボタン */
+        .protein-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+        .btn-quick { padding: 8px; font-size: 0.85rem; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        
+        /* テンプレ選択 */
+        .template-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; max-height: 180px; overflow-y: auto; padding: 4px; background: var(--bg-color); border-radius: 8px; margin-bottom: 12px; }
+        .btn-template { padding: 8px; font-size: 0.8rem; border: 1px solid var(--border-color); background: white; border-radius: 6px; cursor: pointer; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    </style>
+    <link rel="manifest" href="manifest.json">
+    <script>
+        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
+    </script>
+</head>
+<body>
+
+    <div id="page-home" class="page active">
+        <div class="card" style="text-align: center; background: linear-gradient(135deg, #1e3a8a, #3b82f6); color: white;">
+            <h1 style="font-size: 1.5rem; margin-bottom: 4px;">ぴぴナビ</h1>
+            <p>21歳 | 179cm | 目標: 69kg</p>
+        </div>
+
+        <div class="card">
+            <h2>📊 体重進捗（7日平均重視）</h2>
+            <div class="stat-grid">
+                <div class="stat-box"><div>現在 (最新)</div><div class="stat-val" id="home-weight">- kg</div></div>
+                <div class="stat-box"><div>7日平均</div><div class="stat-val" id="home-avg7">- kg</div></div>
+                <div class="stat-box"><div>開始からの差</div><div class="stat-val" id="home-diff">- kg</div></div>
+                <div class="stat-box"><div>目標まで残り</div><div class="stat-val" id="home-remain">- kg</div></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🍗 今日のタンパク質 (<span id="home-p-text">0</span>/130g)</h2>
+            <div class="progress-bar-container">
+                <div id="home-p-progress" class="progress-bar"></div>
+            </div>
+            <div class="protein-grid">
+                <button class="btn-quick" onclick="quickProtein('筋トレ後')">🏋️ 筋トレ後 (+20g)</button>
+                <button class="btn-quick" onclick="quickProtein('間食')">🍪 間食 (+20g)</button>
+                <button class="btn-quick" onclick="quickProtein('朝食補助')">🍞 朝食補助 (+20g)</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>⚡ 今日の摂取カロリー</h2>
+            <div class="stat-grid">
+                <div class="stat-box"><div>現在値</div><div class="stat-val" id="home-cal">0 kcal</div></div>
+                <div class="stat-box"><div>目標目安</div><div class="stat-val" id="home-target-cal" style="color: #555;">1800 kcal</div></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🏋️ 次回の筋トレ予定</h2>
+            <p style="font-size: 1.1rem; font-weight: bold; color: var(--warning-color);" id="home-next-workout">次回のメニュー: Aメニュー</p>
+        </div>
+    </div>
+
+    <div id="page-weight" class="page">
+        <div class="card">
+            <h2>📝 体重を記録</h2>
+            <div class="form-group">
+                <label>日付</label>
+                <input type="date" id="weight-date">
+            </div>
+            <div class="form-group">
+                <label>体重 (kg)</label>
+                <input type="number" step="0.1" id="weight-input" placeholder="75.0">
+            </div>
+            <div class="form-group">
+                <label>メモ</label>
+                <input type="text" id="weight-memo" placeholder="朝起きてすぐ">
+            </div>
+            <button class="btn" onclick="saveWeight()">体重を保存</button>
+        </div>
+
+        <div class="card">
+            <h2>📜 最近の記録</h2>
+            <div id="weight-history-list"></div>
+        </div>
+    </div>
+
+    <div id="page-workout" class="page">
+        <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
+            <h2 id="workout-group-title" style="margin:0;">Aメニュー (全身法)</h2>
+            <button class="btn" id="btn-toggle-group" style="width:auto; padding:6px 12px; font-size:0.85rem;" onclick="toggleWorkoutGroup()">Bに切替</button>
+        </div>
+
+        <div id="workout-list-container" class="workout-list">
+            </div>
+
+        <button class="btn btn-success" style="margin-top: 8px;" onclick="finishWorkout()">今日の筋トレを終了する</button>
+    </div>
+
+    <div id="page-diet" class="page">
+        <div class="card">
+            <h2>🍳 食事を記録</h2>
+            <label>定番メニューテンプレから選ぶ</label>
+            <div class="template-grid" id="template-area"></div>
+
+            <div class="form-group">
+                <label>メニュー名</label>
+                <input type="text" id="diet-name" placeholder="サバ塩焼き">
+            </div>
+            <div class="form-group">
+                <label>推定カロリー (kcal)</label>
+                <input type="number" id="diet-cal" placeholder="350">
+            </div>
+            <div class="form-group">
+                <label>推定タンパク質 (g)</label>
+                <input type="number" id="diet-protein" placeholder="20">
+            </div>
+            <div class="form-group">
+                <label>食事タイミング</label>
+                <select id="diet-timing">
+                    <option value="朝">朝食</option>
+                    <option value="昼">昼食</option>
+                    <option value="間食">間食</option>
+                    <option value="夜">夜食</option>
+                </select>
+            </div>
+            <button class="btn" onclick="saveDiet()">食事を保存</button>
+        </div>
+
+        <div class="card">
+            <h2>📜 今日の食事内容</h2>
+            <div id="diet-today-list"></div>
+        </div>
+    </div>
+
+    <div id="page-settings" class="page">
+        <div class="card">
+            <h2>⚙️ 目標・初期設定</h2>
+            <div class="form-group">
+                <label>開始体重 (kg)</label>
+                <input type="number" step="0.1" id="set-start-weight" value="76.0">
+            </div>
+            <div class="form-group">
+                <label>目標体重 (kg)</label>
+                <input type="number" step="0.1" id="set-target-weight" value="69.0">
+            </div>
+            <button class="btn" onclick="saveSettings()">設定を保存</button>
+        </div>
+        <button class="btn btn-secondary" onclick="clearAllData()" style="background: var(--danger-color);">⚠️ 全データをリセット</button>
+    </div>
+
+    <nav class="nav-bar">
+        <button class="nav-item active" onclick="switchPage('home')"><span class="nav-icon">🏠</span>ホーム</button>
+        <button class="nav-item" onclick="switchPage('weight')"><span class="nav-icon">⚖️</span>体重</button>
+        <button class="nav-item" onclick="switchPage('workout')"><span class="nav-icon">🏋️</span>筋トレ</button>
+        <button class="nav-item" onclick="switchPage('diet')"><span class="nav-icon">🍳</span>食事</button>
+        <button class="nav-item" onclick="switchPage('settings')"><span class="nav-icon">⚙️</span>設定</button>
+    </nav>
+
+<script>
+    // --- 初期データ定義 ---
+    const defaultTemplates = [
+        { name: "豚しゃぶ玉ねぎポン酢", cal: 350, protein: 22 },
+        { name: "カツオのたたき", cal: 180, protein: 25 },
+        { name: "ご飯150g", cal: 240, protein: 4 },
+        { name: "むね肉よだれ鶏", cal: 280, protein: 30 },
+        { name: "肉うどんわかめネギ", cal: 480, protein: 18 },
+        { name: "焼き鮭定食", cal: 550, protein: 28 },
+        { name: "サバ塩焼き", cal: 320, protein: 20 },
+        { name: "サバ缶丼", cal: 500, protein: 26 },
+        { name: "麻婆豆腐", cal: 350, protein: 15 },
+        { name: "寿司 (5皿目安)", cal: 500, protein: 20 },
+        { name: "丸亀うどん+わかめ+ネギ+かしわ天", cal: 560, protein: 22 },
+        { name: "プロテイン", cal: 120, protein: 20 }
+    ];
+
+    const defaultWorkoutMenu = {
+        A: [
+            { name: "レッグプレス", weight: 80, reps: 12, sets: 3, type: "machine", clearCount: 0 },
+            { name: "チェストプレス", weight: 40, reps: 12, sets: 3, type: "machine", clearCount: 0 },
+            { name: "ラットプルダウン", weight: 40, reps: 12, sets: 3, type: "machine", clearCount: 0 },
+            { name: "ショルダープレス", weight: 25, reps: 12, sets: 3, type: "machine", clearCount: 0 },
+            { name: "アブベンチ", weight: 0, reps: 15, sets: 3, type: "body", clearCount: 0 },
+            { name: "有酸素20分", weight: 0, reps: 20, sets: 1, type: "cardio", clearCount: 0 }
+        ],
+        B: [
+            { name: "レッグプレス", weight: 100, reps: 12, sets: 4, type: "machine", clearCount: 0 },
+            { name: "チェストプレス or ディップス", weight: 40, reps: 12, sets: 3, type: "machine", clearCount: 0 },
+            { name: "ローイング or ラットプルダウン", weight: 40, reps: 12, sets: 3, type: "machine", clearCount: 0 },
+            { name: "ショルダープレス", weight: 25, reps: 12, sets: 3, type: "machine", clearCount: 0 },
+            { name: "バイセップスカール", weight: 25, reps: 12, sets: 3, type: "light", clearCount: 0 },
+            { name: "カーフレイズ", weight: 0, reps: 20, sets: 3, type: "body", clearCount: 0 },
+            { name: "有酸素20分", weight: 0, reps: 20, sets: 1, type: "cardio", clearCount: 0 }
+        ]
+    };
+
+    // --- 状態管理 ---
+    let appData = {
+        weights: [],
+        diets: [],
+        workoutGroup: "A",
+        completedIndexes: [], // 今日タップして消えたインデックス
+        workoutStats: defaultWorkoutMenu,
+        settings: { start: 76.0, target: 69.0 }
+    };
+
+    // --- ページ切り替え ---
+    function switchPage(pageId) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        
+        document.getElementById(`page-${pageId}`).classList.add('active');
+        event.currentTarget.classList.add('active');
+        
+        updateHome();
+        if(pageId === 'weight') renderWeightHistory();
+        if(pageId === 'workout') renderWorkout();
+        if(pageId === 'diet') renderDietPage();
+    }
+
+    // --- アプリ初期化 ---
+    window.onload = function() {
+        if(localStorage.getItem("pipi_navi_data")) {
+            appData = JSON.parse(localStorage.getItem("pipi_navi_data"));
+            // 昔のデータにclearCountがない場合の互換性担保
+            ["A", "B"].forEach(g => {
+                appData.workoutStats[g].forEach(item => {
+                    if(item.clearCount === undefined) item.clearCount = 0;
+                });
+            });
+        } else {
+            saveToStorage();
+        }
+        document.getElementById('weight-date').valueAsDate = new Date();
+        initTemplates();
+        updateHome();
+    };
+
+    function saveToStorage() {
+        localStorage.setItem("pipi_navi_data", JSON.stringify(appData));
+    }
+
+    function getTodayStr() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    // --- ホーム画面更新 ---
+    function updateHome() {
+        const today = getTodayStr();
+        
+        const latestWeightObj = appData.weights[appData.weights.length - 1];
+        const currentW = latestWeightObj ? parseFloat(latestWeightObj.weight) : appData.settings.start;
+        document.getElementById('home-weight').textContent = `${currentW.toFixed(1)} kg`;
+        
+        let avg7 = currentW;
+        if(appData.weights.length > 0) {
+            const recent = appData.weights.slice(-7);
+            const sum = recent.reduce((acc, w) => acc + parseFloat(w.weight), 0);
+            avg7 = sum / recent.length;
+        }
+        document.getElementById('home-avg7').textContent = `${avg7.toFixed(1)} kg`;
+        document.getElementById('home-diff').textContent = `${(currentW - appData.settings.start).toFixed(1)} kg`;
+        document.getElementById('home-remain').textContent = `${Math.max(0, currentW - appData.settings.target).toFixed(1)} kg`;
+
+        const todayDiets = appData.diets.filter(d => d.date === today);
+        const totalCal = todayDiets.reduce((sum, d) => sum + parseInt(d.cal || 0), 0);
+        const totalProtein = todayDiets.reduce((sum, d) => sum + parseInt(d.protein || 0), 0);
+
+        document.getElementById('home-cal').textContent = `${totalCal} kcal`;
+        document.getElementById('home-p-text').textContent = totalProtein;
+        
+        const pPercent = Math.min(100, (totalProtein / 130) * 100);
+        document.getElementById('home-p-progress').style.width = `${pPercent}%`;
+
+        const isWorkoutDay = appData.doneTodayFlag === today; 
+        document.getElementById('home-target-cal').textContent = isWorkoutDay ? "1,900〜2,000 kcal" : "1,700〜1,900 kcal";
+        document.getElementById('home-next-workout').textContent = `次回のメニュー: ${appData.workoutGroup}メニュー`;
+    }
+
+    // --- 体重管理 ---
+    function saveWeight() {
+        const date = document.getElementById('weight-date').value;
+        const weight = document.getElementById('weight-input').value;
+        const memo = document.getElementById('weight-memo').value;
+        if(!weight) return alert("体重を入力してください");
+
+        appData.weights.push({ date, weight, memo });
+        appData.weights.sort((a,b) => new Date(a.date) - new Date(b.date));
+        saveToStorage();
+        alert("体重を記録しました！");
+        document.getElementById('weight-input').value = "";
+        document.getElementById('weight-memo').value = "";
+        renderWeightHistory();
+    }
+
+    function renderWeightHistory() {
+        const container = document.getElementById('weight-history-list');
+        container.innerHTML = "";
+        appData.weights.slice().reverse().forEach(w => {
+            const div = document.createElement('div');
+            div.className = "list-item";
+            div.innerHTML = `<div><strong>${w.date}</strong>: ${w.weight}kg <span style="font-size:0.8rem; color:#666;">(${w.memo || 'なし'})</span></div>`;
+            container.appendChild(div);
+        });
+    }
+
+    // --- 筋トレ管理（1つ目のアプリ仕様＋5回アップ仕様） ---
+    function toggleWorkoutGroup() {
+        appData.workoutGroup = appData.workoutGroup === "A" ? "B" : "A";
+        document.getElementById('btn-toggle-group').textContent = appData.workoutGroup === "A" ? "Bに切替" : "Aに切替";
+        appData.completedIndexes = [];
+        renderWorkout();
+    }
+
+    function renderWorkout() {
+        document.getElementById('workout-group-title').textContent = `${appData.workoutGroup}メニュー (全身法)`;
+        const container = document.getElementById('workout-list-container');
+        container.innerHTML = "";
+
+        const currentMenu = appData.workoutStats[appData.workoutGroup];
+
+        // すべて完了したかチェック
+        if (appData.completedIndexes.length === currentMenu.length) {
+            container.innerHTML = `<div class="complete-message">🎉 今日のメニュー全達成！ 🎉</div>`;
+            return;
+        }
+
+        currentMenu.forEach((item, idx) => {
+            // タップされて完了している種目は描画しない（画面から消す）
+            if (appData.completedIndexes.includes(idx)) return;
+
+            const div = document.createElement('div');
+            div.className = "list-item workout-item";
+            
+            // あと何回で重量アップするかを出す
+            let upTxt = "";
+            if (item.type === "machine") upTxt = `重量アップまであと ${5 - item.clearCount}回 (現在:${item.weight}kg)`;
+            else if (item.type === "light") upTxt = `重量アップまであと ${5 - item.clearCount}回 (現在:${item.weight}kg)`;
+            else if (item.type === "body") upTxt = `ステップアップまであと ${5 - item.clearCount}回`;
+
+            div.innerHTML = `
+                <div class="workout-info">
+                    <span class="workout-name">${item.name}</span>
+                    <span class="workout-target" style="font-size:0.85rem; color:#555;">
+                        ${item.type !== 'cardio' && item.weight > 0 ? item.weight + 'kg × ' : ''}${item.reps}回 / ${item.sets}セット
+                    </span>
+                    <div class="up-alert">${upTxt}</div>
+                </div>
+                <div class="checkbox-btn"></div>
+            `;
+
+            // タップされたら完了配列に入れて再描画（画面から消える）
+            div.addEventListener('click', () => {
+                appData.completedIndexes.push(idx);
+                saveToStorage();
+                renderWorkout();
+            });
+
+            container.appendChild(div);
+        });
+    }
+
+    function finishWorkout() {
+        const currentMenu = appData.workoutStats[appData.workoutGroup];
+        
+        // 今日タップされて完了した種目の「クリア回数カウント」を+1する
+        appData.completedIndexes.forEach(idx => {
+            const item = currentMenu[idx];
+            item.clearCount += 1;
+
+            // 5回クリアを達成したら、重量アップを適用してカウントをリセット
+            if (item.clearCount >= 5) {
+                if(item.type === "machine") item.weight += 5;
+                if(item.type === "light") item.weight += 2.5;
+                item.clearCount = 0; // 次の重量ステージへリセット
+                alert(`${item.name}が5回クリアされたので、次回から自動で重量がアップします！`);
+            }
+        });
+
+        // 本日の筋トレフラグ（ホーム画面のカロリー表示連動用）
+        appData.doneTodayFlag = getTodayStr();
+        
+        // 次回のグループに切り替え、今日のチェック（非表示状態）をリセット
+        appData.workoutGroup = appData.workoutGroup === "A" ? "B" : "A";
+        appData.completedIndexes = []; 
+        
+        saveToStorage();
+        alert(`お疲れ様でした！今回のクリア実績が記録されました。次回は ${appData.workoutGroup}メニュー です！`);
+        switchPage('home');
+    }
+
+    // --- 食事・プロテイン管理 ---
+    function initTemplates() {
+        const area = document.getElementById('template-area');
+        area.innerHTML = "";
+        defaultTemplates.forEach(t => {
+            const btn = document.createElement('button');
+            btn.className = "btn-template";
+            btn.textContent = `${t.name} (${t.protein}g)`;
+            btn.onclick = () => {
+                document.getElementById('diet-name').value = t.name;
+                document.getElementById('diet-cal').value = t.cal;
+                document.getElementById('diet-protein').value = t.protein;
+            };
+            area.appendChild(btn);
+        });
+    }
+
+    function saveDiet() {
+        const name = document.getElementById('diet-name').value;
+        const cal = document.getElementById('diet-cal').value;
+        const protein = document.getElementById('diet-protein').value;
+        const timing = document.getElementById('diet-timing').value;
+        if(!name) return alert("メニュー名を入力してください");
+
+        appData.diets.push({
+            date: getTodayStr(),
+            timing, name, cal: parseInt(cal||0), protein: parseInt(protein||0)
+        });
+        
+        saveToStorage();
+        alert("食事を記録しました！");
+        document.getElementById('diet-name').value = "";
+        document.getElementById('diet-cal').value = "";
+        document.getElementById('diet-protein').value = "";
+        renderDietPage();
+    }
+
+    function quickProtein(type) {
+        appData.diets.push({
+            date: getTodayStr(),
+            timing: "間食",
+            name: `プロテイン (${type})`,
+            cal: 120,
+            protein: 20
+        });
+        saveToStorage();
+        updateHome();
+        alert(`プロテイン(+20g)を記録しました！`);
+    }
+
+    function renderDietPage() {
+        const today = getTodayStr();
+        const container = document.getElementById('diet-today-list');
+        container.innerHTML = "";
+        
+        const todayDiets = appData.diets.filter(d => d.date === today);
+        todayDiets.forEach(d => {
+            const div = document.createElement('div');
+            div.className = "list-item";
+            div.innerHTML = `<div><strong>[${d.timing}] ${d.name}</strong><br><span style="font-size:0.85rem; color:#555;">${d.cal} kcal / タンパク質 ${d.protein}g</span></div>`;
+            container.appendChild(div);
+        });
+    }
+
+    // --- 設定管理 ---
+    function saveSettings() {
+        appData.settings.start = parseFloat(document.getElementById('set-start-weight').value || 76.0);
+        appData.settings.target = parseFloat(document.getElementById('set-target-weight').value || 69.0);
+        saveToStorage();
+        alert("設定を保存しました！");
+        updateHome();
+    }
+
+    function clearAllData() {
+        if(confirm("すべての記録をリセットしますか？")) {
+            localStorage.clear();
+            location.reload();
+        }
+    }
+</script>
+</body>
+</html>
