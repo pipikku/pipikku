@@ -270,12 +270,11 @@
         workoutStats: defaultWorkoutMenu,
         settings: { start: 76.0, target: 69.0 },
         currentTiming: "朝",
-        lastMessagePattern: 0 // メッセージパターン交互記録用 (0か1)
+        lastMessagePattern: 0
     };
 
     let isSnackMode = false;
 
-    // --- ページ切り替え ---
     function switchPage(pageId, element) {
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -301,11 +300,11 @@
 
     window.onload = function() {
         if(localStorage.getItem("pipi_navi_data")) {
-            appData = JSON.parse(localStorage.getItem("pipi_navi_data"));
+            const savedData = JSON.parse(localStorage.getItem("pipi_navi_data"));
+            appData = Object.assign({}, appData, savedData);
             if(!appData.currentTiming) appData.currentTiming = "朝";
             if(!appData.workoutStats) appData.workoutStats = defaultWorkoutMenu;
             if(!appData.completedIndexes) appData.completedIndexes = [];
-            if(appData.lastMessagePattern === undefined) appData.lastMessagePattern = 0;
         } else {
             saveToStorage();
         }
@@ -467,28 +466,27 @@
         appData.workoutGroup = appData.workoutGroup === "A" ? "B" : "A";
         appData.completedIndexes = []; 
 
-        // --- メッセージとキャラクターの交互切り替え処理 ---
         const nextDateStr = getNextWorkoutDate();
         let selectedImg = "chara.png";
         let msg = "";
 
-        if (appData.lastMessagePattern === 0) {
-            // パターン1（お姉さん風キャラ）
+        if (Number(appData.lastMessagePattern) === 0) {
             selectedImg = "chara.png";
             msg = `……お疲れ様です。 今日もちゃんと積み重ねましたね。\n筋肉は一日で大きくは変わりませんが、昨日の自分には確実に勝っています。\n\nでは、次の日程です。 【${nextDateStr}】\n無理はしなくて構いません。 またその日に、今日と同じように一歩だけ前へ進みましょう。\n\n……私は、待っています。`;
-            appData.lastMessagePattern = 1; // 次回はパターン2へ
+            appData.lastMessagePattern = 1; 
         } else {
-            // パターン2（ツンデレちびキャラ）
-            selectedImg = "chara2.png";
+            selectedImg = "chara2.png"; // ここを.pngに修正しました！
             msg = `おっ、キミまた筋トレしてたの？\nよく飽きもせずにやるね？\n\n弱っちいキミだけど、すこしはマシになったんじゃない？\n\n次は…うん、【${nextDateStr}】かな。\n\nボクはこの日に見に来るからやる気があるならまた来なよ。`;
-            appData.lastMessagePattern = 0; // 次回はパターン1へ
+            appData.lastMessagePattern = 0; 
         }
 
         saveToStorage();
 
-        // 画面への反映
-        document.getElementById('finish-image-element').src = selectedImg;
-        document.getElementById('finish-message-text').textContent = msg;
+        const imgEl = document.getElementById('finish-image-element');
+        const txtEl = document.getElementById('finish-message-text');
+        
+        if(imgEl) imgEl.src = selectedImg;
+        if(txtEl) txtEl.textContent = msg;
 
         document.getElementById('workout-active-view').style.display = 'none';
         document.getElementById('workout-finish-view').style.display = 'block';
@@ -605,7 +603,6 @@
         });
     }
 
-    // --- 設定管理 ---
     function saveSettings() {
         appData.settings.start = parseFloat(document.getElementById('set-start-weight').value || 76.0);
         appData.settings.target = parseFloat(document.getElementById('set-target-weight').value || 69.0);
