@@ -46,12 +46,14 @@
         .btn-secondary { background: #6b7280; }
         .btn-success { background: var(--success-color); }
         
-        /* 筋トレ・食事用UI */
+        /* 食事タイミング用アクティブスタイル */
+        .timing-display { display: inline-block; background: #e0f2fe; color: #0369a1; padding: 4px 12px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; margin-left: 8px; }
+        .snack-toggle { display: flex; align-items: center; justify-content: center; gap: 8px; background: #f3f4f6; border: 2px solid #d1d5db; color: #374151; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 12px; }
+        .snack-toggle.active { background: #fef3c7; border-color: var(--warning-color); color: #92400e; }
+
+        /* 筋トレ用UI */
         .list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-color); border-radius: 8px; margin-bottom: 8px; animation: fadeIn 0.3s ease; }
         .workout-item { border-left: 5px solid var(--primary-color); cursor: pointer; }
-        
-        /* 完了した種目は非表示にする */
-        .workout-item.completed { display: none; }
         
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
@@ -60,7 +62,11 @@
 
         .checkbox-btn { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #ccc; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; background: white; flex-shrink: 0; }
         .up-alert { font-size: 0.8rem; color: var(--warning-color); font-weight: bold; margin-top: 2px; }
-        .complete-message { text-align: center; padding: 30px 10px; color: var(--success-color); font-weight: bold; font-size: 1.2rem; }
+        
+        /* 筋トレ完了応援メッセージエリア */
+        .workout-finish-card { display: none; background: white; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .workout-finish-img { width: 100%; max-width: 240px; border-radius: 8px; margin-bottom: 16px; object-fit: contain; }
+        .workout-finish-msg { text-align: left; font-size: 0.95rem; line-height: 1.6; color: #333; background: #f9fafb; padding: 16px; border-radius: 8px; border-left: 4px solid var(--success-color); white-space: pre-wrap; }
 
         /* クイックプロテインボタン */
         .protein-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
@@ -144,20 +150,33 @@
     </div>
 
     <div id="page-workout" class="page">
-        <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
-            <h2 id="workout-group-title" style="margin:0;">Aメニュー (全身法)</h2>
-            <button class="btn" id="btn-toggle-group" style="width:auto; padding:6px 12px; font-size:0.85rem;" onclick="toggleWorkoutGroup()">Bに切替</button>
-        </div>
-
-        <div id="workout-list-container" class="workout-list">
+        <div id="workout-active-view">
+            <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
+                <h2 id="workout-group-title" style="margin:0;">Aメニュー (全身法)</h2>
+                <button class="btn" id="btn-toggle-group" style="width:auto; padding:6px 12px; font-size:0.85rem;" onclick="toggleWorkoutGroup()">Bに切替</button>
             </div>
 
-        <button class="btn btn-success" style="margin-top: 8px;" onclick="finishWorkout()">今日の筋トレを終了する</button>
+            <div id="workout-list-container" class="workout-list">
+                </div>
+
+            <button class="btn btn-success" style="margin-top: 8px;" onclick="finishWorkout()">今日の筋トレを終了する</button>
+        </div>
+
+        <div id="workout-finish-view" class="workout-finish-card">
+            <img src="chara.png" class="workout-finish-img" alt="応援キャラクター">
+            <div id="finish-message-text" class="workout-finish-msg"></div>
+            <button class="btn btn-secondary" style="margin-top:20px;" onclick="resetWorkoutView()">確認しました</button>
+        </div>
     </div>
 
     <div id="page-diet" class="page">
         <div class="card">
-            <h2>🍳 食事を記録</h2>
+            <h2>🍳 食事を記録 <span id="current-timing-badge" class="timing-display">朝食</span></h2>
+            
+            <div class="snack-toggle" id="snack-btn" onclick="toggleSnackMode()">
+                🍪 間食（おやつ・プロテイン等）として記録する
+            </div>
+
             <label>定番メニューテンプレから選ぶ</label>
             <div class="template-grid" id="template-area"></div>
 
@@ -172,15 +191,6 @@
             <div class="form-group">
                 <label>推定タンパク質 (g)</label>
                 <input type="number" id="diet-protein" placeholder="20">
-            </div>
-            <div class="form-group">
-                <label>食事タイミング</label>
-                <select id="diet-timing">
-                    <option value="朝">朝食</option>
-                    <option value="昼">昼食</option>
-                    <option value="間食">間食</option>
-                    <option value="夜">夜食</option>
-                </select>
             </div>
             <button class="btn" onclick="saveDiet()">食事を保存</button>
         </div>
@@ -257,10 +267,13 @@
         weights: [],
         diets: [],
         workoutGroup: "A",
-        completedIndexes: [], // 今日タップして消えたインデックス
+        completedIndexes: [],
         workoutStats: defaultWorkoutMenu,
-        settings: { start: 76.0, target: 69.0 }
+        settings: { start: 76.0, target: 69.0 },
+        currentTiming: "朝"
     };
+
+    let isSnackMode = false;
 
     // --- ページ切り替え ---
     function switchPage(pageId) {
@@ -272,7 +285,11 @@
         
         updateHome();
         if(pageId === 'weight') renderWeightHistory();
-        if(pageId === 'workout') renderWorkout();
+        if(pageId === 'workout') {
+            document.getElementById('workout-active-view').style.display = 'block';
+            document.getElementById('workout-finish-view').style.display = 'none';
+            renderWorkout();
+        }
         if(pageId === 'diet') renderDietPage();
     }
 
@@ -280,12 +297,7 @@
     window.onload = function() {
         if(localStorage.getItem("pipi_navi_data")) {
             appData = JSON.parse(localStorage.getItem("pipi_navi_data"));
-            // 昔のデータにclearCountがない場合の互換性担保
-            ["A", "B"].forEach(g => {
-                appData.workoutStats[g].forEach(item => {
-                    if(item.clearCount === undefined) item.clearCount = 0;
-                });
-            });
+            if(!appData.currentTiming) appData.currentTiming = "朝";
         } else {
             saveToStorage();
         }
@@ -301,6 +313,26 @@
     function getTodayStr() {
         const d = new Date();
         return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    // --- 次の月・水・金曜日を計算する関数 ---
+    function getNextWorkoutDate() {
+        const today = new Date();
+        const daysOfWeek = ["日", "月", "火", "水", "木", "金", "土"];
+        
+        for (let i = 1; i <= 7; i++) {
+            const nextDate = new Date(today);
+            nextDate.setDate(today.getDate() + i);
+            const dayNum = nextDate.getDay();
+            
+            if (dayNum === 1 || dayNum === 3 || dayNum === 5) {
+                const m = nextDate.getMonth() + 1;
+                const d = nextDate.getDate();
+                const w = daysOfWeek[dayNum];
+                return `${m}月${d}日（${w}）`;
+            }
+        }
+        return "";
     }
 
     // --- ホーム画面更新 ---
@@ -326,207 +358,4 @@
         const totalProtein = todayDiets.reduce((sum, d) => sum + parseInt(d.protein || 0), 0);
 
         document.getElementById('home-cal').textContent = `${totalCal} kcal`;
-        document.getElementById('home-p-text').textContent = totalProtein;
-        
-        const pPercent = Math.min(100, (totalProtein / 130) * 100);
-        document.getElementById('home-p-progress').style.width = `${pPercent}%`;
-
-        const isWorkoutDay = appData.doneTodayFlag === today; 
-        document.getElementById('home-target-cal').textContent = isWorkoutDay ? "1,900〜2,000 kcal" : "1,700〜1,900 kcal";
-        document.getElementById('home-next-workout').textContent = `次回のメニュー: ${appData.workoutGroup}メニュー`;
-    }
-
-    // --- 体重管理 ---
-    function saveWeight() {
-        const date = document.getElementById('weight-date').value;
-        const weight = document.getElementById('weight-input').value;
-        const memo = document.getElementById('weight-memo').value;
-        if(!weight) return alert("体重を入力してください");
-
-        appData.weights.push({ date, weight, memo });
-        appData.weights.sort((a,b) => new Date(a.date) - new Date(b.date));
-        saveToStorage();
-        alert("体重を記録しました！");
-        document.getElementById('weight-input').value = "";
-        document.getElementById('weight-memo').value = "";
-        renderWeightHistory();
-    }
-
-    function renderWeightHistory() {
-        const container = document.getElementById('weight-history-list');
-        container.innerHTML = "";
-        appData.weights.slice().reverse().forEach(w => {
-            const div = document.createElement('div');
-            div.className = "list-item";
-            div.innerHTML = `<div><strong>${w.date}</strong>: ${w.weight}kg <span style="font-size:0.8rem; color:#666;">(${w.memo || 'なし'})</span></div>`;
-            container.appendChild(div);
-        });
-    }
-
-    // --- 筋トレ管理（1つ目のアプリ仕様＋5回アップ仕様） ---
-    function toggleWorkoutGroup() {
-        appData.workoutGroup = appData.workoutGroup === "A" ? "B" : "A";
-        document.getElementById('btn-toggle-group').textContent = appData.workoutGroup === "A" ? "Bに切替" : "Aに切替";
-        appData.completedIndexes = [];
-        renderWorkout();
-    }
-
-    function renderWorkout() {
-        document.getElementById('workout-group-title').textContent = `${appData.workoutGroup}メニュー (全身法)`;
-        const container = document.getElementById('workout-list-container');
-        container.innerHTML = "";
-
-        const currentMenu = appData.workoutStats[appData.workoutGroup];
-
-        // すべて完了したかチェック
-        if (appData.completedIndexes.length === currentMenu.length) {
-            container.innerHTML = `<div class="complete-message">🎉 今日のメニュー全達成！ 🎉</div>`;
-            return;
-        }
-
-        currentMenu.forEach((item, idx) => {
-            // タップされて完了している種目は描画しない（画面から消す）
-            if (appData.completedIndexes.includes(idx)) return;
-
-            const div = document.createElement('div');
-            div.className = "list-item workout-item";
-            
-            // あと何回で重量アップするかを出す
-            let upTxt = "";
-            if (item.type === "machine") upTxt = `重量アップまであと ${5 - item.clearCount}回 (現在:${item.weight}kg)`;
-            else if (item.type === "light") upTxt = `重量アップまであと ${5 - item.clearCount}回 (現在:${item.weight}kg)`;
-            else if (item.type === "body") upTxt = `ステップアップまであと ${5 - item.clearCount}回`;
-
-            div.innerHTML = `
-                <div class="workout-info">
-                    <span class="workout-name">${item.name}</span>
-                    <span class="workout-target" style="font-size:0.85rem; color:#555;">
-                        ${item.type !== 'cardio' && item.weight > 0 ? item.weight + 'kg × ' : ''}${item.reps}回 / ${item.sets}セット
-                    </span>
-                    <div class="up-alert">${upTxt}</div>
-                </div>
-                <div class="checkbox-btn"></div>
-            `;
-
-            // タップされたら完了配列に入れて再描画（画面から消える）
-            div.addEventListener('click', () => {
-                appData.completedIndexes.push(idx);
-                saveToStorage();
-                renderWorkout();
-            });
-
-            container.appendChild(div);
-        });
-    }
-
-    function finishWorkout() {
-        const currentMenu = appData.workoutStats[appData.workoutGroup];
-        
-        // 今日タップされて完了した種目の「クリア回数カウント」を+1する
-        appData.completedIndexes.forEach(idx => {
-            const item = currentMenu[idx];
-            item.clearCount += 1;
-
-            // 5回クリアを達成したら、重量アップを適用してカウントをリセット
-            if (item.clearCount >= 5) {
-                if(item.type === "machine") item.weight += 5;
-                if(item.type === "light") item.weight += 2.5;
-                item.clearCount = 0; // 次の重量ステージへリセット
-                alert(`${item.name}が5回クリアされたので、次回から自動で重量がアップします！`);
-            }
-        });
-
-        // 本日の筋トレフラグ（ホーム画面のカロリー表示連動用）
-        appData.doneTodayFlag = getTodayStr();
-        
-        // 次回のグループに切り替え、今日のチェック（非表示状態）をリセット
-        appData.workoutGroup = appData.workoutGroup === "A" ? "B" : "A";
-        appData.completedIndexes = []; 
-        
-        saveToStorage();
-        alert(`お疲れ様でした！今回のクリア実績が記録されました。次回は ${appData.workoutGroup}メニュー です！`);
-        switchPage('home');
-    }
-
-    // --- 食事・プロテイン管理 ---
-    function initTemplates() {
-        const area = document.getElementById('template-area');
-        area.innerHTML = "";
-        defaultTemplates.forEach(t => {
-            const btn = document.createElement('button');
-            btn.className = "btn-template";
-            btn.textContent = `${t.name} (${t.protein}g)`;
-            btn.onclick = () => {
-                document.getElementById('diet-name').value = t.name;
-                document.getElementById('diet-cal').value = t.cal;
-                document.getElementById('diet-protein').value = t.protein;
-            };
-            area.appendChild(btn);
-        });
-    }
-
-    function saveDiet() {
-        const name = document.getElementById('diet-name').value;
-        const cal = document.getElementById('diet-cal').value;
-        const protein = document.getElementById('diet-protein').value;
-        const timing = document.getElementById('diet-timing').value;
-        if(!name) return alert("メニュー名を入力してください");
-
-        appData.diets.push({
-            date: getTodayStr(),
-            timing, name, cal: parseInt(cal||0), protein: parseInt(protein||0)
-        });
-        
-        saveToStorage();
-        alert("食事を記録しました！");
-        document.getElementById('diet-name').value = "";
-        document.getElementById('diet-cal').value = "";
-        document.getElementById('diet-protein').value = "";
-        renderDietPage();
-    }
-
-    function quickProtein(type) {
-        appData.diets.push({
-            date: getTodayStr(),
-            timing: "間食",
-            name: `プロテイン (${type})`,
-            cal: 120,
-            protein: 20
-        });
-        saveToStorage();
-        updateHome();
-        alert(`プロテイン(+20g)を記録しました！`);
-    }
-
-    function renderDietPage() {
-        const today = getTodayStr();
-        const container = document.getElementById('diet-today-list');
-        container.innerHTML = "";
-        
-        const todayDiets = appData.diets.filter(d => d.date === today);
-        todayDiets.forEach(d => {
-            const div = document.createElement('div');
-            div.className = "list-item";
-            div.innerHTML = `<div><strong>[${d.timing}] ${d.name}</strong><br><span style="font-size:0.85rem; color:#555;">${d.cal} kcal / タンパク質 ${d.protein}g</span></div>`;
-            container.appendChild(div);
-        });
-    }
-
-    // --- 設定管理 ---
-    function saveSettings() {
-        appData.settings.start = parseFloat(document.getElementById('set-start-weight').value || 76.0);
-        appData.settings.target = parseFloat(document.getElementById('set-target-weight').value || 69.0);
-        saveToStorage();
-        alert("設定を保存しました！");
-        updateHome();
-    }
-
-    function clearAllData() {
-        if(confirm("すべての記録をリセットしますか？")) {
-            localStorage.clear();
-            location.reload();
-        }
-    }
-</script>
-</body>
-</html>
+        document.getElementById
