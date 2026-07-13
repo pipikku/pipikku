@@ -1,14 +1,20 @@
 {
   "name": "ぴぴナビ",
   "short_name": "ぴぴナビ",
-  "start_url": "/pipikku/index.html",
+  "description": "筋トレと体重記録の応援ナビ",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f4f6f9",
   "theme_color": "#3b82f6",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "icon.png",
+      "src": "chara2.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "chara2.png",
       "sizes": "512x512",
       "type": "image/png"
     }
